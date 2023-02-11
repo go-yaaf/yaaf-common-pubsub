@@ -17,8 +17,7 @@ type pubSubAdapter struct {
 
 // NewPubSubMessageBus factory method for PubSub IMessageBus implementation
 //
-// param: URI - represents the redis connection string in the format of: redis://user:password@host:port
-// return: IDataCache instance, error
+// param: URI - represents the redis connection string in the format of: pubsub://projectId
 func NewPubSubMessageBus(URI string) (mq IMessageBus, err error) {
 
 	uri, err := url.Parse(URI)

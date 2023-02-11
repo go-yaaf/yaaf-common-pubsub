@@ -22,4 +22,9 @@ Then import the validator package into your own code.
 	import "github.com/go-yaaf/yaaf-common-pubsub"
 
 
-
+Test
+------------
+To test this library in the local machine environment, you need to run the Google PubSub emulator
+```bash
+docker
+```
