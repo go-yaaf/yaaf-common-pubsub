@@ -39,7 +39,7 @@ func TestPubSubSuite(t *testing.T) {
 func (s *PubSubTestSuite) SetupSuite() {
 
 	// Set local pubsub emulator host
-	os.Setenv("PUBSUB_EMULATOR_HOST", "localEmulator")
+	os.Setenv("PUBSUB_EMULATOR_HOST", localEmulator)
 
 	project := "pulseiot,status:StatusAggregator"
 	// Create command to run Redis container
