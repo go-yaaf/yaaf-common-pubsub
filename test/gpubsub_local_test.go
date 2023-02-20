@@ -41,11 +41,12 @@ func (s *PubSubTestSuite) SetupSuite() {
 	// Set local pubsub emulator host
 	os.Setenv("PUBSUB_EMULATOR_HOST", localEmulator)
 
-	project := "pulseiot,status:StatusAggregator"
+	project := "pulseiot,status:StatusAggregator,StatusLogger"
 	// Create command to run Redis container
 	err := utils.DockerUtils().CreateContainer(containerImage).
 		Name(containerName).
-		Port(containerPort, containerPort).
+		Port("8681", "8681").
+		Port("8682", "8682").
 		Label("env", "test").
 		Var("PUBSUB_PROJECT1", project).
 		Run()
@@ -92,9 +93,10 @@ func (s *PubSubTestSuite) TestLocalPubSub() {
 
 	// Create status message publisher
 	NewStatusPublisher(uri).Name("publisher").Topic("status").Duration(time.Minute).Interval(time.Millisecond * 500).Start(wg)
+	//NewStatusPublisher(uri).Name("publisher").Topic("status").Duration(time.Minute).Interval(time.Millisecond * 500).StartBatch(10)
 
 	// Create and run logger consumer
-	//NewStatusLogger(uri).Name("logger").Topic("status").Start()
+	NewStatusLogger(uri).Name("logger").Topic("status").Start()
 
 	// Create and run average aggregator consumer
 	NewStatusAggregator(uri).Name("average").Topic("status").Duration(time.Minute).Interval(time.Second * 5).Start(wg)

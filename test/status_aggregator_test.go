@@ -67,9 +67,9 @@ func (p *StatusAggregator) Start(wg *sync.WaitGroup) {
 		p.error = err
 	} else {
 		if subscriber, er := mq.Subscribe(NewStatusMessage, p.processMessage, "StatusAggregator", p.topic); er != nil {
-			logger.Error(er.Error())
+			logger.Error("StatusAggregator:Start error: %s", er.Error())
 		} else {
-			logger.Info("StatusAggregator Subscriber: %s", subscriber)
+			logger.Info("StatusAggregator:Start success Subscriber: %s", subscriber)
 		}
 		go p.run(wg)
 	}

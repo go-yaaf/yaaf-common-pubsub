@@ -102,12 +102,12 @@ func (r *pubSubLiteAdapter) Unsubscribe(subscriptionId string) bool {
 
 // Push Append one or multiple messages to a queue
 func (r *pubSubLiteAdapter) Push(messages ...IMessage) error {
-	return fmt.Errorf("push is not supported in Google pubsub implementation, use Producer.Publish()")
+	return fmt.Errorf("push is not supported in Google pubsub lite implementation, use Producer.Publish()")
 }
 
 // Pop Remove and get the last message in a queue or block until timeout expires
 func (r *pubSubLiteAdapter) Pop(factory MessageFactory, timeout time.Duration, queue ...string) (IMessage, error) {
-	return nil, fmt.Errorf("pop is not supported in Google pubsub implementation, use Consumer.Subscribe()")
+	return nil, fmt.Errorf("pop is not supported in Google pubsub lite implementation, use Consumer.Subscribe()")
 }
 
 // CreateProducer creates message producer for specific topic

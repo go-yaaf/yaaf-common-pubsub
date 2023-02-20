@@ -58,6 +58,25 @@ func (p *StatusPublisher) Start(wg *sync.WaitGroup) {
 	}
 }
 
+// Start the publisher with a batch number of messages
+func (p *StatusPublisher) StartBatch(total int) {
+	if mq, err := ps.NewPubSubMessageBus(p.uri); err != nil {
+		p.error = err
+	} else {
+		for i := 0; i < total; i++ {
+			cpu := rand.Intn(100)
+			ram := rand.Intn(100)
+			message := newStatusMessage(p.topic, NewStatus1(cpu, ram).(*Status))
+			if err := mq.Publish(message); err != nil {
+				logger.Error("error publishing message: %s", err.Error())
+			} else {
+				logger.Info("message: %s published", message.SessionId())
+			}
+			time.Sleep(p.interval)
+		}
+	}
+}
+
 // GetError return error
 func (p *StatusPublisher) GetError() error {
 	return p.error
