@@ -1,0 +1,24 @@
+version: '3.9'
+services:
+  pubsub:
+    image: messagebird/gcloud-pubsub-emulator
+    restart: always
+    ports:
+      - "8681:8681"
+    environment:
+      PUBSUB_PROJECT1: "production,status,event:event-listener"
+      PUBSUB_PROJECT2: "staging,invoices:invoice-calculator,chats:slack-out:irc-out,notifications"
+
+  pubsubui:
+    image: dennisvis/pubsubui
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      PUBSUB_EMULATOR_HOST: "pubsub:8681"
+      GOOGLE_CLOUD_PROJECTS: "production,staging"
+
+
+
+
+

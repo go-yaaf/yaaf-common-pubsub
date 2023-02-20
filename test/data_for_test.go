@@ -45,13 +45,13 @@ func NewStatusMessage() IMessage {
 	return &StatusMessage{}
 }
 
-func newStatusMessage(topic string, status *Status) IMessage {
+func newStatusMessage(topic string, status *Status, sessionId string) IMessage {
 	message := &StatusMessage{
 		Status: status,
 	}
 	message.MsgTopic = topic
 	message.MsgOpCode = int(time.Now().Unix())
-	message.MsgSessionId = NanoID()
+	message.MsgSessionId = sessionId
 	message.MsgPayload = status
 	return message
 }

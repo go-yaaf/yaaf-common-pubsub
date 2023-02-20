@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"github.com/go-yaaf/yaaf-common/logger"
 	"math/rand"
 	"sync"
@@ -58,25 +59,6 @@ func (p *StatusPublisher) Start(wg *sync.WaitGroup) {
 	}
 }
 
-// Start the publisher with a batch number of messages
-func (p *StatusPublisher) StartBatch(total int) {
-	if mq, err := ps.NewPubSubMessageBus(p.uri); err != nil {
-		p.error = err
-	} else {
-		for i := 0; i < total; i++ {
-			cpu := rand.Intn(100)
-			ram := rand.Intn(100)
-			message := newStatusMessage(p.topic, NewStatus1(cpu, ram).(*Status))
-			if err := mq.Publish(message); err != nil {
-				logger.Error("error publishing message: %s", err.Error())
-			} else {
-				logger.Info("message: %s published", message.SessionId())
-			}
-			time.Sleep(p.interval)
-		}
-	}
-}
-
 // GetError return error
 func (p *StatusPublisher) GetError() error {
 	return p.error
@@ -87,6 +69,8 @@ func (p *StatusPublisher) run(wg *sync.WaitGroup, mq messaging.IMessageBus) {
 
 	rand.NewSource(time.Now().UnixNano())
 
+	counter := 0
+
 	// Run publisher until timeout and push status message every time interval
 	after := time.After(p.duration)
 	for {
@@ -94,7 +78,8 @@ func (p *StatusPublisher) run(wg *sync.WaitGroup, mq messaging.IMessageBus) {
 		case _ = <-time.Tick(p.interval):
 			cpu := rand.Intn(100)
 			ram := rand.Intn(100)
-			message := newStatusMessage(p.topic, NewStatus1(cpu, ram).(*Status))
+			counter += 1
+			message := newStatusMessage(p.topic, NewStatus1(cpu, ram).(*Status), fmt.Sprintf("%d", counter))
 			if err := mq.Publish(message); err != nil {
 				logger.Error("error publishing message: %s", err.Error())
 			} else {

@@ -36,7 +36,7 @@ func (p *StatusLogger) Start() {
 		logger.Error("error starting StatusLogger: %s", err.Error())
 		p.error = err
 	} else {
-		if subscriber, er := mq.Subscribe(NewStatusMessage, p.processMessage, "StatusLogger", p.topic); er != nil {
+		if subscriber, er := mq.Subscribe(NewStatusMessage, p.processMessage, p.name, p.topic); er != nil {
 			logger.Error(er.Error())
 		} else {
 			logger.Info("StatusAggregator Subscriber: %s", subscriber)
@@ -52,6 +52,6 @@ func (p *StatusLogger) GetError() error {
 // This consumer just print the message to the console
 func (p *StatusLogger) processMessage(message messaging.IMessage) bool {
 	sm := message.(*StatusMessage)
-	logger.Debug("[%s] %s", p.name, sm.Status.NAME())
-	return false
+	logger.Debug("[%s] %s --> %s", p.name, message.SessionId(), sm.Status.NAME())
+	return true
 }

@@ -3,6 +3,7 @@ package gpubsub
 import (
 	"context"
 	"fmt"
+	"github.com/go-yaaf/yaaf-common/logger"
 	"time"
 
 	_ "encoding/json"
@@ -78,11 +79,11 @@ func (r *pubSubAdapter) Subscribe(factory MessageFactory, callback SubscriptionC
 		}
 	}
 
-	if er := sub.Receive(context.Background(), receiver); err != nil {
-		return "", er
-	} else {
-		return sub.ID(), nil
-	}
+	go func() {
+		defer sub.Delete(context.Background())
+		logger.Error("Subscribe error: %z", sub.Receive(context.Background(), receiver))
+	}()
+	return sub.ID(), nil
 }
 
 // Unsubscribe with the given subscriber id
