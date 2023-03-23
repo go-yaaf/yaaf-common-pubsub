@@ -42,7 +42,11 @@ func (r *pubSubAdapter) Publish(messages ...IMessage) error {
 			return er
 		} else {
 			if topic, ok := topicsMap[message.Topic()]; ok {
-				_ = topic.Publish(context.Background(), &pubsub.Message{Data: bytes})
+				if msgId, err := topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
+					return err
+				} else {
+					logger.Debug("message published. id: %s", msgId)
+				}
 			}
 		}
 	}
@@ -120,7 +124,7 @@ type pubSubProducer struct {
 	topic     *pubsub.Topic
 }
 
-// Close producer does noting in this implementation
+// Close producer does nothing in this implementation
 func (p *pubSubProducer) Close() error {
 	return nil
 }
@@ -142,7 +146,11 @@ func (p *pubSubProducer) Publish(messages ...IMessage) error {
 			return er
 		} else {
 			if message.Topic() == p.topicName {
-				p.topic.Publish(context.Background(), &pubsub.Message{Data: bytes})
+				if msgId, err := p.topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
+					return err
+				} else {
+					logger.Debug("message published. id: %s", msgId)
+				}
 			}
 		}
 	}
