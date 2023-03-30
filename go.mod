@@ -5,7 +5,7 @@ go 1.20
 require (
 	cloud.google.com/go/pubsub v1.30.0
 	cloud.google.com/go/pubsublite v1.7.0
-	github.com/go-yaaf/yaaf-common v1.2.25
+	github.com/go-yaaf/yaaf-common v1.2.46
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.1
 )
