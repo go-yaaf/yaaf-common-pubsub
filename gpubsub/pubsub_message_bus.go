@@ -186,7 +186,18 @@ func (c *pubSubConsumer) Close() error {
 	return nil
 }
 
-// Read message from topic, blocks until a new message arrive or until timeout
+// Read message from topic, blocks until a new message arrive or until timeout expires
+// Use 0 instead of time.Duration for unlimited time
+// The standard way to use Read is by using infinite loop:
+//
+//	for {
+//		if msg, err := consumer.Read(time.Second * 5); err != nil {
+//			// Handle error
+//		} else {
+//			// Process message in a dedicated go routine
+//			go processTisMessage(msg)
+//		}
+//	}
 func (c *pubSubConsumer) Read(timeout time.Duration) (message IMessage, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())

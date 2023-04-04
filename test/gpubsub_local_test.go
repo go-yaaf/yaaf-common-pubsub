@@ -3,6 +3,8 @@ package test
 import (
 	"fmt"
 	"github.com/go-yaaf/yaaf-common/logger"
+	"github.com/go-yaaf/yaaf-common/utils"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"sync"
 	"testing"
@@ -48,8 +50,8 @@ func (s *PubSubTestSuite) SetupSuite() {
 
 // TearDownSuite will be run once at the end of the testing suite, after all tests have been run
 func (s *PubSubTestSuite) TearDownSuite() {
-	//err := utils.DockerUtils().StopContainer(containerName)
-	//assert.Nil(s.T(), err)
+	err := utils.DockerUtils().StopContainer(containerName)
+	assert.Nil(s.T(), err)
 }
 
 // createSUT creates the system-under-test which is postgresql implementation of IDatabase
@@ -77,6 +79,35 @@ func (s *PubSubTestSuite) TestLocalPubSub() {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
+	// Create subscriber
+	if subscriber, err := s.mq.Subscribe("my_subscriber", NewStatusMessage, s.processMessage, "status"); err != nil {
+		logger.Error(err.Error())
+	} else {
+		logger.Info("subscriber: %s was created", subscriber)
+	}
+
+	// Create status message publisher
+	NewStatusPublisher(uri).Name("publisher").Topic("status").Duration(time.Minute).Interval(time.Second * 10).Start(wg)
+
+	wg.Wait()
+	logger.Info("Done")
+
+}
+
+func (s *PubSubTestSuite) processMessage(message messaging.IMessage) bool {
+	logger.Info("[my_subscriber] message: %s", message.SessionId())
+	return true
+}
+
+/**
+func (s *PubSubTestSuite) _TestLocalPubSub() {
+
+	uri := fmt.Sprintf("pubsub://%s", "pulseiot")
+
+	// Sync all publishers and consumers
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
 	// Create and run logger consumer
 	NewStatusLogger(uri).Name("logger").Topic("status").Start()
 
@@ -94,6 +125,7 @@ func (s *PubSubTestSuite) TestLocalPubSub() {
 	wg.Wait()
 	logger.Info("Done")
 }
+***/
 
 // Use consumer -> reader pattern to read messages
 func (s *PubSubTestSuite) reader() {
