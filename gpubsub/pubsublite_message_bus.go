@@ -2,8 +2,8 @@ package gpubsub
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/go-yaaf/yaaf-common/logger"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -30,7 +30,6 @@ func (r *pubSubLiteAdapter) Publish(messages ...IMessage) error {
 			if topic, err := r.getOrCreateTopic(message.Topic()); err != nil {
 				return err
 			} else {
-
 				if publisher, er := pscompat.NewPublisherClient(context.Background(), topic.Name); er != nil {
 					return er
 				} else {
@@ -59,7 +58,7 @@ func (r *pubSubLiteAdapter) Publish(messages ...IMessage) error {
 }
 
 // Subscribe on topics
-func (r *pubSubLiteAdapter) Subscribe(factory MessageFactory, callback SubscriptionCallback, subscriberName string, topics ...string) (subscriptionId string, error error) {
+func (r *pubSubLiteAdapter) Subscribe(subscriberName string, factory MessageFactory, callback SubscriptionCallback, topics ...string) (subscriptionId string, error error) {
 
 	if len(topics) != 1 {
 		return "", fmt.Errorf("only one topic allawed in this implementation")
@@ -76,21 +75,45 @@ func (r *pubSubLiteAdapter) Subscribe(factory MessageFactory, callback Subscript
 		return "", err
 	}
 
-	receiver := func(ctx context.Context, m *pubsub.Message) {
-		if msg, er := rawToMessage(factory, m.Data); er != nil {
-			m.Ack()
-		} else {
-			if callback(msg) {
-				m.Ack()
-			} else {
-				m.Nack()
-			}
-		}
-	}
 	go func() {
-		logger.Error("Subscribe error: %z", subscriber.Receive(context.Background(), receiver))
+		r.readMessages(subscriber, factory, callback)
 	}()
 	return subPath, nil
+}
+
+// Main loop of reading messages from the topic
+func (r *pubSubLiteAdapter) readMessages(subscriber *pscompat.SubscriberClient, factory MessageFactory, callback SubscriptionCallback) {
+
+	var err error
+	ctx := context.Background()
+	for {
+		cCtx, cancel := context.WithCancel(ctx)
+		err = subscriber.Receive(cCtx, func(ctx context.Context, m *pubsub.Message) {
+			if msg, er := rawToMessage(factory, m.Data); er != nil {
+				m.Nack()
+			} else {
+				if callback(msg) {
+					m.Ack()
+				} else {
+					m.Nack()
+				}
+			}
+			m.Ack()
+		})
+		if err != nil {
+			if errors.Is(err, pscompat.ErrBackendUnavailable) {
+				// TODO: Alert if necessary. Receive can be retried.
+				continue
+			} else {
+				// TODO: Handle fatal error.
+				cancel()
+				break
+			}
+		}
+
+		// Call cancel from the receiver callback or another goroutine to stop receiving.
+		cancel()
+	}
 }
 
 // Unsubscribe with the given subscriber id
@@ -122,6 +145,34 @@ func (r *pubSubLiteAdapter) CreateProducer(topicName string) (IMessageProducer, 
 	}
 }
 
+// CreateConsumer creates message consumer for a specific topic
+func (r *pubSubLiteAdapter) CreateConsumer(subscriberName string, mf MessageFactory, topics ...string) (IMessageConsumer, error) {
+	if len(topics) != 1 {
+		return nil, fmt.Errorf("only one topic allawed in this implementation")
+	}
+
+	// Ensure topic exists
+	_, fe := r.getOrCreateTopic(topics[0])
+	if fe != nil {
+		return nil, fe
+	}
+
+	// Ensure subscription exists
+	_, err := r.getOrCreateSubscription(topics[0], subscriberName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create subscriber client
+	subPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpZone, subscriberName)
+	subscriber, err := pscompat.NewSubscriberClient(context.Background(), subPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pubLiteSubConsumer{topicName: topics[0], subscriber: subscriber, factory: mf}, nil
+}
+
 // endregion
 
 // region Producer actions ---------------------------------------------------------------------------------------------
@@ -131,7 +182,7 @@ type pubSubLiteProducer struct {
 	publisher *pscompat.PublisherClient
 }
 
-// Close producer does noting in this implementation
+// Close producer does nothing in this implementation
 func (p *pubSubLiteProducer) Close() error {
 	p.publisher.Stop()
 	return nil
@@ -160,6 +211,46 @@ func (p *pubSubLiteProducer) Publish(messages ...IMessage) error {
 	}
 	return nil
 }
+
+// region Consumer actions ---------------------------------------------------------------------------------------------
+
+type pubLiteSubConsumer struct {
+	topicName  string
+	subscriber *pscompat.SubscriberClient
+	factory    MessageFactory
+}
+
+// Close producer does nothing in this implementation
+func (c *pubLiteSubConsumer) Close() error {
+	return nil
+}
+
+// Read message from topic, blocks until a new message arrive or until timeout
+func (c *pubLiteSubConsumer) Read(timeout time.Duration) (message IMessage, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	}
+
+	er := c.subscriber.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+		message, err = rawToMessage(c.factory, m.Data)
+		m.Ack()
+		cancel()
+	})
+
+	if er == nil || er == context.Canceled {
+		if message == nil {
+			return nil, fmt.Errorf("read timeout")
+		} else {
+			return message, err
+		}
+	} else {
+		return nil, er
+	}
+}
+
+// endregion
 
 // endregion
 

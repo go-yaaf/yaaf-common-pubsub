@@ -42,10 +42,8 @@ func (r *pubSubAdapter) Publish(messages ...IMessage) error {
 			return er
 		} else {
 			if topic, ok := topicsMap[message.Topic()]; ok {
-				if msgId, err := topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
+				if _, err := topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
 					return err
-				} else {
-					logger.Debug("message published. id: %s", msgId)
 				}
 			}
 		}
@@ -54,7 +52,7 @@ func (r *pubSubAdapter) Publish(messages ...IMessage) error {
 }
 
 // Subscribe on topics
-func (r *pubSubAdapter) Subscribe(factory MessageFactory, callback SubscriptionCallback, subscriberName string, topics ...string) (subscriptionId string, error error) {
+func (r *pubSubAdapter) Subscribe(subscriberName string, factory MessageFactory, callback SubscriptionCallback, topics ...string) (subscriptionId string, error error) {
 
 	if len(topics) != 1 {
 		return "", fmt.Errorf("only one topic allawed in this implementation")
@@ -66,7 +64,6 @@ func (r *pubSubAdapter) Subscribe(factory MessageFactory, callback SubscriptionC
 	}
 
 	sub, err := r.getOrCreateSubscription(topic, subscriberName)
-
 	if err != nil {
 		return "", err
 	}
@@ -115,6 +112,25 @@ func (r *pubSubAdapter) CreateProducer(topicName string) (IMessageProducer, erro
 	}
 }
 
+// CreateConsumer creates message consumer for a specific topic
+func (r *pubSubAdapter) CreateConsumer(subscriberName string, mf MessageFactory, topics ...string) (IMessageConsumer, error) {
+	if len(topics) != 1 {
+		return nil, fmt.Errorf("only one topic allawed in this implementation")
+	}
+
+	topic, fe := r.getOrCreateTopic(topics[0])
+	if fe != nil {
+		return nil, fe
+	}
+
+	sub, err := r.getOrCreateSubscription(topic, subscriberName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pubSubConsumer{topicName: topics[0], subscription: sub, factory: mf}, nil
+}
+
 // endregion
 
 // region Producer actions ---------------------------------------------------------------------------------------------
@@ -146,15 +162,52 @@ func (p *pubSubProducer) Publish(messages ...IMessage) error {
 			return er
 		} else {
 			if message.Topic() == p.topicName {
-				if msgId, err := p.topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
+				if _, err := p.topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
 					return err
-				} else {
-					logger.Debug("message published. id: %s", msgId)
 				}
 			}
 		}
 	}
 	return nil
+}
+
+// endregion
+
+// region Consumer actions ---------------------------------------------------------------------------------------------
+
+type pubSubConsumer struct {
+	topicName    string
+	subscription *pubsub.Subscription
+	factory      MessageFactory
+}
+
+// Close producer does nothing in this implementation
+func (c *pubSubConsumer) Close() error {
+	return nil
+}
+
+// Read message from topic, blocks until a new message arrive or until timeout
+func (c *pubSubConsumer) Read(timeout time.Duration) (message IMessage, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	}
+
+	er := c.subscription.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+		message, err = rawToMessage(c.factory, m.Data)
+		m.Ack()
+		cancel()
+	})
+	if er == nil || er == context.Canceled {
+		if message == nil {
+			return nil, fmt.Errorf("read timeout")
+		} else {
+			return message, err
+		}
+	} else {
+		return nil, er
+	}
 }
 
 // endregion

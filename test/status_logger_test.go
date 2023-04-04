@@ -36,7 +36,7 @@ func (p *StatusLogger) Start() {
 		logger.Error("error starting StatusLogger: %s", err.Error())
 		p.error = err
 	} else {
-		if subscriber, er := mq.Subscribe(NewStatusMessage, p.processMessage, p.name, p.topic); er != nil {
+		if subscriber, er := mq.Subscribe(p.name, NewStatusMessage, p.processMessage, p.topic); er != nil {
 			logger.Error(er.Error())
 		} else {
 			logger.Info("StatusAggregator Subscriber: %s", subscriber)

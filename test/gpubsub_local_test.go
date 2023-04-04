@@ -39,17 +39,6 @@ func (s *PubSubTestSuite) SetupSuite() {
 	// Set local pubsub emulator host
 	os.Setenv("PUBSUB_EMULATOR_HOST", localEmulator)
 
-	//project := "production,status:StatusAggregator,StatusLogger"
-	//err := utils.DockerUtils().CreateContainer(containerImage).
-	//	Name(containerName).
-	//	Port("8681", "8681").
-	//	Port("8682", "8682").
-	//	Label("env", "test").
-	//	Var("PUBSUB_PROJECT1", project).
-	//	Run()
-	//
-	//assert.Nil(s.T(), err)
-
 	// Give it 5 seconds to warm up
 	time.Sleep(5 * time.Second)
 
@@ -97,8 +86,30 @@ func (s *PubSubTestSuite) TestLocalPubSub() {
 	// NewStatusAggregator(uri).Name("average").Topic("status").Duration(time.Minute).Interval(time.Second * 4).Start(wg)
 
 	// Create status message publisher
-	NewStatusPublisher(uri).Name("publisher").Topic("status").Duration(time.Minute).Interval(time.Second * 5).Start(wg)
+	NewStatusPublisher(uri).Name("publisher").Topic("status").Duration(time.Minute).Interval(time.Second * 10).Start(wg)
+
+	// Use reader to consume messages
+	go s.reader()
 
 	wg.Wait()
 	logger.Info("Done")
+}
+
+// Use consumer -> reader pattern to read messages
+func (s *PubSubTestSuite) reader() {
+
+	consumer, err := s.mq.CreateConsumer("status_reader", NewStatusMessage, "status")
+	if err != nil {
+		logger.Error(err.Error())
+	} else {
+		logger.Info("Starting consumer: status_reader")
+	}
+
+	for {
+		if msg, err := consumer.Read(time.Second * 5); err != nil {
+			logger.Error(err.Error())
+		} else {
+			logger.Info("[reader] --> message: %s received", msg.SessionId())
+		}
+	}
 }
