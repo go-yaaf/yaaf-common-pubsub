@@ -34,8 +34,7 @@ type GcsFile struct {
 
 func NewGcsFile(uri string) fs.IFile {
 	ctx := context.Background()
-	cli, _ := storage.NewClient(ctx)
-	return &GcsFile{uri: uri, gsClient: cli, context: ctx}
+	return &GcsFile{uri: uri, context: ctx}
 }
 
 // URI returns the resource URI with schema
@@ -46,11 +45,20 @@ func (t *GcsFile) URI() string {
 
 // Close client to free resources
 func (t *GcsFile) Close() (err error) {
-	return t.gsClient.Close()
+	if t.gsClient != nil {
+		return t.gsClient.Close()
+	} else {
+		return nil
+	}
 }
 
 // Read implements io.Reader interface
 func (t *GcsFile) Read(p []byte) (int, error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return 0, er
+	}
+
 	if t.reader != nil {
 		return t.reader.Read(p)
 	}
@@ -69,6 +77,11 @@ func (t *GcsFile) Read(p []byte) (int, error) {
 
 // Write implements io.Writer interface
 func (t *GcsFile) Write(p []byte) (int, error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return 0, er
+	}
+
 	if t.writer != nil {
 		return t.writer.Write(p)
 	}
@@ -87,6 +100,10 @@ func (t *GcsFile) Write(p []byte) (int, error) {
 
 // ReadAll read resource content to a byte array in a single call
 func (t *GcsFile) ReadAll() (b []byte, err error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return nil, er
+	}
 
 	// Get bucket and object from path
 	bucket, object, err := parseUri(t.uri)
@@ -109,6 +126,10 @@ func (t *GcsFile) ReadAll() (b []byte, err error) {
 
 // WriteAll write content to a resource in a single call
 func (t *GcsFile) WriteAll(b []byte) (n int, err error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return 0, er
+	}
 
 	// Get bucket and object from path
 	bucket, object, err := parseUri(t.uri)
@@ -130,6 +151,11 @@ func (t *GcsFile) WriteAll(b []byte) (n int, err error) {
 
 // Exists test if file exists
 func (t *GcsFile) Exists() (result bool) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return false
+	}
+
 	// Get bucket and object from path
 	bucket, object, err := parseUri(t.uri)
 	if err != nil {
@@ -150,6 +176,11 @@ func (t *GcsFile) Exists() (result bool) {
 // Rename change the resource name using pattern.
 // The pattern can be a file or keeping parts from the original file using template ({{path}}, {{file}}, {{ext}})
 func (t *GcsFile) Rename(pattern string) (string, error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return "", er
+	}
+
 	// Get bucket and object from path
 	bucket, object, err := parseUri(t.uri)
 	if err != nil {
@@ -188,6 +219,11 @@ func (t *GcsFile) Rename(pattern string) (string, error) {
 
 // Delete a file
 func (t *GcsFile) Delete() (err error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return er
+	}
+
 	// Get bucket and object from path
 	bucket, object, err := parseUri(t.uri)
 	if err != nil {
@@ -203,6 +239,11 @@ func (t *GcsFile) Delete() (err error) {
 
 // Copy file content to a writer
 func (t *GcsFile) Copy(wc io.WriteCloser) (written int64, err error) {
+	// ensure client
+	if er := t.ensureClient(); er != nil {
+		return 0, er
+	}
+
 	if bucket, object, er := parseUri(t.uri); err != nil {
 		return 0, er
 	} else {
@@ -236,6 +277,20 @@ func (t *GcsFile) getWriter() (wc io.WriteCloser, err error) {
 		return nil, er
 	} else {
 		return t.gsClient.Bucket(bucket).Object(object).NewWriter(t.context), nil
+	}
+}
+
+// Ensure Google Storage Client in initialized
+func (t *GcsFile) ensureClient() error {
+	if t.gsClient != nil {
+		return nil
+	} else {
+		if cli, err := storage.NewClient(t.context); err != nil {
+			return err
+		} else {
+			t.gsClient = cli
+			return nil
+		}
 	}
 }
 
