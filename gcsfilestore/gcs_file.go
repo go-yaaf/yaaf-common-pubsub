@@ -33,7 +33,9 @@ type GcsFile struct {
 }
 
 func NewGcsFile(uri string) fs.IFile {
-	return &GcsFile{uri: uri}
+	ctx := context.Background()
+	cli, _ := storage.NewClient(ctx)
+	return &GcsFile{uri: uri, gsClient: cli, context: ctx}
 }
 
 // URI returns the resource URI with schema
