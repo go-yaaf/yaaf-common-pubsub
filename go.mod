@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/pubsublite v1.8.1
 	cloud.google.com/go/storage v1.30.1
-	github.com/go-yaaf/yaaf-common v1.2.54
+	github.com/go-yaaf/yaaf-common v1.2.56
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.1
 	google.golang.org/api v0.124.0
@@ -27,6 +27,9 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.9.1 // indirect
 	github.com/jaevor/go-nanoid v1.2.0 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
