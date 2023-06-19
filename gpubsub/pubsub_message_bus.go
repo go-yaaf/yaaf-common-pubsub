@@ -3,15 +3,11 @@ package gpubsub
 import (
 	"context"
 	"fmt"
-	"github.com/go-yaaf/yaaf-common/logger"
 	"time"
-
-	_ "encoding/json"
-	_ "github.com/google/uuid"
 
 	"cloud.google.com/go/pubsub"
 
-	_ "github.com/go-yaaf/yaaf-common/logger"
+	"github.com/go-yaaf/yaaf-common/logger"
 	. "github.com/go-yaaf/yaaf-common/messaging"
 )
 

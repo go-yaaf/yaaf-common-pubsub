@@ -6,8 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/pubsublite v1.8.1
 	cloud.google.com/go/storage v1.30.1
-	github.com/go-yaaf/yaaf-common v1.2.56
-	github.com/google/uuid v1.3.0
+	github.com/go-yaaf/yaaf-common v1.2.57
 	github.com/stretchr/testify v1.8.1
 	google.golang.org/api v0.124.0
 )
@@ -24,6 +23,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.9.1 // indirect
 	github.com/jaevor/go-nanoid v1.2.0 // indirect
