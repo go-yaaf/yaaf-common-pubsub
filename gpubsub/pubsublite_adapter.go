@@ -14,6 +14,7 @@ import (
 
 type pubSubLiteAdapter struct {
 	client     *pubsublite.AdminClient
+	uri        string
 	gcpProject string
 	gcpRegion  string
 	gcpZone    string
@@ -36,6 +37,7 @@ func NewPubSubLiteMessageBus(URI string) (mq IMessageBus, err error) {
 	}
 
 	psa := &pubSubLiteAdapter{
+		uri:        URI,
 		client:     client,
 		gcpProject: project,
 		gcpRegion:  region,
@@ -58,6 +60,11 @@ func (r *pubSubLiteAdapter) Ping(retries uint, intervalInSeconds uint) error {
 
 func (r *pubSubLiteAdapter) Close() error {
 	return r.client.Close()
+}
+
+// CloneMessageBus returns a new copy of this message bus
+func (r *pubSubLiteAdapter) CloneMessageBus() (mq IMessageBus, err error) {
+	return NewPubSubMessageBus(r.uri)
 }
 
 // Get region or zone

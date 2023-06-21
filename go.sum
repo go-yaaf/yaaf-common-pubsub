@@ -42,6 +42,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-yaaf/yaaf-common v1.2.57 h1:IdfJWlSdNbcsxTc9hOOFaiSec2ua8UwaenWKTUrXt78=
 github.com/go-yaaf/yaaf-common v1.2.57/go.mod h1:Bspi+kIMucN+iXlV+X97l5qquzjgeS7x3+iEP6aL72E=
+github.com/go-yaaf/yaaf-common v1.2.62 h1:LbHNOIPiwMVYRjjGA0IqjpFsNuhi7HJ1luztVGEh3i0=
+github.com/go-yaaf/yaaf-common v1.2.62/go.mod h1:Bspi+kIMucN+iXlV+X97l5qquzjgeS7x3+iEP6aL72E=
 github.com/golang-jwt/jwt/v4 v4.4.3 h1:Hxl6lhQFj4AnOX6MLrsCb/+7tCj7DxP7VA+2rDIq5AU=
 github.com/golang-jwt/jwt/v4 v4.4.3/go.mod h1:m21LjoU+eqJr34lmDMbreY2eSTRJ1cv77w39/MY0Ch0=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=

@@ -13,6 +13,7 @@ import (
 
 type pubSubAdapter struct {
 	client *pubsub.Client
+	uri    string
 }
 
 // NewPubSubMessageBus factory method for PubSub IMessageBus implementation
@@ -35,6 +36,7 @@ func NewPubSubMessageBus(URI string) (mq IMessageBus, err error) {
 	}
 	psa := &pubSubAdapter{
 		client: client,
+		uri:    URI,
 	}
 
 	return psa, nil
@@ -53,6 +55,11 @@ func (r *pubSubAdapter) Ping(retries uint, intervalInSeconds uint) error {
 
 func (r *pubSubAdapter) Close() error {
 	return r.client.Close()
+}
+
+// CloneMessageBus returns a new copy of this message bus
+func (r *pubSubAdapter) CloneMessageBus() (mq IMessageBus, err error) {
+	return NewPubSubMessageBus(r.uri)
 }
 
 // region PRIVATE SECTION ----------------------------------------------------------------------------------------------
