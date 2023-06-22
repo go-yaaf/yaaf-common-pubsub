@@ -2,12 +2,12 @@ package gpubsub
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"cloud.google.com/go/pubsub"
 
+	. "github.com/go-yaaf/yaaf-common/entity"
 	. "github.com/go-yaaf/yaaf-common/messaging"
 )
 
@@ -67,7 +67,7 @@ func (r *pubSubAdapter) CloneMessageBus() (mq IMessageBus, err error) {
 // convert raw data to message
 func rawToMessage(factory MessageFactory, bytes []byte) (IMessage, error) {
 	message := factory()
-	if err := json.Unmarshal(bytes, &message); err != nil {
+	if err := Unmarshal(bytes, &message); err != nil {
 		return nil, err
 	} else {
 		return message, nil
@@ -76,7 +76,7 @@ func rawToMessage(factory MessageFactory, bytes []byte) (IMessage, error) {
 
 // convert message to raw data
 func messageToRaw(message IMessage) ([]byte, error) {
-	return json.Marshal(message)
+	return Marshal(message)
 }
 
 // endregion

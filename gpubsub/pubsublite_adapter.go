@@ -7,9 +7,8 @@ import (
 	"os"
 	"strings"
 
-	. "github.com/go-yaaf/yaaf-common/messaging"
-
 	"cloud.google.com/go/pubsublite"
+	. "github.com/go-yaaf/yaaf-common/messaging"
 )
 
 type pubSubLiteAdapter struct {
