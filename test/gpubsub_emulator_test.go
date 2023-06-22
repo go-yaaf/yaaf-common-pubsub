@@ -12,11 +12,11 @@ func TestPubSubEmulator(t *testing.T) {
 	skipCI(t)
 
 	// Config emulator
-	os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
+	_ = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
 
 	// Connect
 	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, "production")
+	client, err := pubsub.NewClient(ctx, "shieldiot-production")
 	if err != nil {
 		t.Error(err.Error())
 		t.FailNow()

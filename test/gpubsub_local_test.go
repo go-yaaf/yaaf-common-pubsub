@@ -39,7 +39,7 @@ func TestPubSubSuite(t *testing.T) {
 func (s *PubSubTestSuite) SetupSuite() {
 
 	// Set local pubsub emulator host
-	os.Setenv("PUBSUB_EMULATOR_HOST", localEmulator)
+	_ = os.Setenv("PUBSUB_EMULATOR_HOST", localEmulator)
 
 	// Give it 5 seconds to warm up
 	time.Sleep(5 * time.Second)

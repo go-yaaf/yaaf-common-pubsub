@@ -77,8 +77,15 @@ func (r *pubSubAdapter) Subscribe(subscriberName string, factory MessageFactory,
 	}
 
 	go func() {
-		defer sub.Delete(context.Background())
-		logger.Error("Subscribe error: %z", sub.Receive(context.Background(), receiver))
+		ctx := context.Background()
+		sId := sub.ID()
+		if er := sub.Receive(ctx, receiver); er != nil {
+			logger.Error("Subscription %s receive error: %s", sId, er.Error())
+		}
+		if er := sub.Delete(ctx); er != nil {
+			logger.Error("Subscription %s delete error: %s", sId, err.Error())
+		}
+		logger.Error("Subscription %s ends", sId)
 	}()
 	return sub.ID(), nil
 }
