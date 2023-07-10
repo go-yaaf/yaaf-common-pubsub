@@ -4,47 +4,10 @@ import (
 	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"os"
+	"github.com/go-yaaf/yaaf-common/entity"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
-
-func TestPubSubEmulator(t *testing.T) {
-	skipCI(t)
-
-	// Config emulator
-	_ = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
-
-	// Connect
-	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, "shieldiot-production")
-	if err != nil {
-		t.Error(err.Error())
-		t.FailNow()
-	}
-
-	// Add topic
-	createTopic(client, "status")
-
-	if ok, er := client.Topic("newTopic").Exists(ctx); er != nil {
-		t.Error(er.Error())
-	} else {
-		fmt.Println("Topic exists?:", ok)
-	}
-
-	if topic, er := client.CreateTopic(ctx, "newTopic"); er != nil {
-		fmt.Println("Topic exists")
-	} else {
-		fmt.Println("Topic string:", topic.String(), "Id:", topic.ID())
-	}
-
-	// List topics
-	it := client.Topics(ctx)
-	for topic, er := it.Next(); er == nil; topic, er = it.Next() {
-		fmt.Println(topic.ID())
-		_ = topic.Publish(ctx, &pubsub.Message{Data: ([]byte)("Hello world")})
-	}
-
-}
 
 func createTopic(client *pubsub.Client, topicName string) {
 	if topic, er := client.CreateTopic(context.Background(), topicName); er != nil {
@@ -72,4 +35,36 @@ func createSubscriber(client *pubsub.Client, topicName string, subscriberName st
 			return
 		}
 	}
+}
+
+func TestIsJsonString(t *testing.T) {
+	skipCI(t)
+
+	status := NewStatus1(100, 48)
+	msg := newStatusMessage("topic", status.(*Status), "session")
+
+	bytes, err := entity.Marshal(msg)
+	require.NoError(t, err)
+	isJson := isJsonString(bytes)
+	fmt.Println(isJson)
+
+	bytes = []byte{04, 45, 23, 56, 44, 45, 23, 56, 44, 45, 23, 56, 44}
+	isJson = isJsonString(bytes)
+	fmt.Println(isJson)
+}
+
+// Check if the byte array representing a JSON string
+func isJsonString(bytes []byte) bool {
+
+	s := string(bytes[0:1])
+	e := string(bytes[len(bytes)-1:])
+	fmt.Println(s, e, len(bytes))
+
+	if string(bytes[0:1]) == "{" && string(bytes[len(bytes)-1:]) == "}" {
+		return true
+	}
+	if string(bytes[0:1]) == "[" && string(bytes[len(bytes)-1:]) == "]" {
+		return true
+	}
+	return false
 }

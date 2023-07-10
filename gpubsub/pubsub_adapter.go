@@ -67,16 +67,38 @@ func (r *pubSubAdapter) CloneMessageBus() (mq IMessageBus, err error) {
 // convert raw data to message
 func rawToMessage(factory MessageFactory, bytes []byte) (IMessage, error) {
 	message := factory()
-	if err := Unmarshal(bytes, &message); err != nil {
-		return nil, err
+	if isJsonString(bytes) {
+		if err := Unmarshal(bytes, &message); err != nil {
+			return nil, err
+		} else {
+			return message, nil
+		}
 	} else {
-		return message, nil
+		if err := BinaryUnmarshal(bytes, message); err != nil {
+			return nil, err
+		} else {
+			return message, nil
+		}
 	}
 }
 
 // convert message to raw data
 func messageToRaw(message IMessage) ([]byte, error) {
-	return Marshal(message)
+	return BinaryMarshal(message)
+}
+
+// Check if the byte array representing a JSON string
+func isJsonString(bytes []byte) bool {
+	if len(bytes) < 2 {
+		return false
+	}
+	if string(bytes[0:1]) == "{" && string(bytes[len(bytes)-1:]) == "}" {
+		return true
+	}
+	if string(bytes[0:1]) == "[" && string(bytes[len(bytes)-1:]) == "]" {
+		return true
+	}
+	return false
 }
 
 // endregion

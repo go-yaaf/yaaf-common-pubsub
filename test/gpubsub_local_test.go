@@ -99,34 +99,6 @@ func (s *PubSubTestSuite) processMessage(message messaging.IMessage) bool {
 	return true
 }
 
-/**
-func (s *PubSubTestSuite) _TestLocalPubSub() {
-
-	uri := fmt.Sprintf("pubsub://%s", "pulseiot")
-
-	// Sync all publishers and consumers
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	// Create and run logger consumer
-	NewStatusLogger(uri).Name("logger").Topic("status").Start()
-
-	NewStatusLogger(uri).Name("viewer").Topic("status").Start()
-
-	// Create and run average aggregator consumer
-	// NewStatusAggregator(uri).Name("average").Topic("status").Duration(time.Minute).Interval(time.Second * 4).Start(wg)
-
-	// Create status message publisher
-	NewStatusPublisher(uri).Name("publisher").Topic("status").Duration(time.Minute).Interval(time.Second * 10).Start(wg)
-
-	// Use reader to consume messages
-	go s.reader()
-
-	wg.Wait()
-	logger.Info("Done")
-}
-***/
-
 // Use consumer -> reader pattern to read messages
 func (s *PubSubTestSuite) reader() {
 
