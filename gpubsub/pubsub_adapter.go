@@ -76,14 +76,6 @@ func (r *pubSubAdapter) CloneMessageBus() (mq IMessageBus, err error) {
 func rawToMessage(factory MessageFactory, bytes []byte) (IMessage, error) {
 	message := factory()
 
-	if forceJsonMarshal {
-		if err := Unmarshal(bytes, &message); err != nil {
-			return nil, err
-		} else {
-			return message, nil
-		}
-	}
-
 	if isJsonString(bytes) {
 		if err := Unmarshal(bytes, &message); err != nil {
 			return nil, err
