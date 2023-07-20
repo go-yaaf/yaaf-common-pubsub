@@ -4,12 +4,20 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 
 	"cloud.google.com/go/pubsub"
 
 	. "github.com/go-yaaf/yaaf-common/entity"
 	. "github.com/go-yaaf/yaaf-common/messaging"
 )
+
+var forceJsonMarshal bool
+
+func init() {
+	fjm := os.Getenv("FORCE_JSON_MARSHAL")
+	forceJsonMarshal = fjm == "true"
+}
 
 type pubSubAdapter struct {
 	client *pubsub.Client
@@ -67,6 +75,15 @@ func (r *pubSubAdapter) CloneMessageBus() (mq IMessageBus, err error) {
 // convert raw data to message
 func rawToMessage(factory MessageFactory, bytes []byte) (IMessage, error) {
 	message := factory()
+
+	if forceJsonMarshal {
+		if err := Unmarshal(bytes, &message); err != nil {
+			return nil, err
+		} else {
+			return message, nil
+		}
+	}
+
 	if isJsonString(bytes) {
 		if err := Unmarshal(bytes, &message); err != nil {
 			return nil, err
@@ -84,7 +101,11 @@ func rawToMessage(factory MessageFactory, bytes []byte) (IMessage, error) {
 
 // convert message to raw data
 func messageToRaw(message IMessage) ([]byte, error) {
-	return BinaryMarshal(message)
+	if forceJsonMarshal {
+		return Marshal(message)
+	} else {
+		return BinaryMarshal(message)
+	}
 }
 
 // Check if the byte array representing a JSON string
