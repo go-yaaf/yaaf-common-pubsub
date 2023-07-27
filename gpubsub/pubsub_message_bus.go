@@ -264,6 +264,10 @@ func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberN
 			return sub, nil
 		}
 	}
+
+	// Set MaxOutstandingBytes to negative number will ignore this limit
+	sub.ReceiveSettings.MaxOutstandingBytes = -1
+
 	return sub, nil
 }
 
