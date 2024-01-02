@@ -3,6 +3,7 @@ package gpubsub
 import (
 	"context"
 	"fmt"
+	"github.com/go-yaaf/yaaf-common/config"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -265,8 +266,10 @@ func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberN
 		}
 	}
 
-	// Set MaxOutstandingBytes to negative number will ignore this limit
-	sub.ReceiveSettings.MaxOutstandingBytes = -1
+	cfg := config.Get()
+	sub.ReceiveSettings.NumGoroutines = cfg.PubSubNumOfGoroutines()
+	sub.ReceiveSettings.MaxOutstandingMessages = cfg.PubSubMaxOutstandingMessages()
+	sub.ReceiveSettings.MaxOutstandingBytes = cfg.PubSubMaxOutstandingBytes()
 
 	return sub, nil
 }
