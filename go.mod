@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.33.0
 	cloud.google.com/go/pubsublite v1.8.1
 	cloud.google.com/go/storage v1.31.0
-	github.com/go-yaaf/yaaf-common v1.2.79
+	github.com/go-yaaf/yaaf-common v1.2.81
 	github.com/stretchr/testify v1.8.1
 	google.golang.org/api v0.126.0
 )
