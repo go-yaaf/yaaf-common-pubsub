@@ -166,7 +166,11 @@ func (p *pubSubProducer) Publish(messages ...IMessage) error {
 			return er
 		} else {
 			if message.Topic() == p.topicName {
-				if _, err := p.topic.Publish(context.Background(), &pubsub.Message{Data: bytes}).Get(context.Background()); err != nil {
+				msg := &pubsub.Message{Data: bytes}
+				if p.topic.EnableMessageOrdering && message.Addressee() != "" {
+					msg.OrderingKey = message.Addressee()
+				}
+				if _, err := p.topic.Publish(context.Background(), msg).Get(context.Background()); err != nil {
 					return err
 				}
 			}
@@ -230,48 +234,59 @@ func (c *pubSubConsumer) Read(timeout time.Duration) (message IMessage, err erro
 // region PRIVATE SECTION ----------------------------------------------------------------------------------------------
 
 // Get topic or create it if not exists
-func (r *pubSubAdapter) getOrCreateTopic(topicName string) (topic *pubsub.Topic, error error) {
-	t := r.client.Topic(topicName)
-	ok, err := t.Exists(context.Background())
-	if err != nil {
-		return nil, err
-	}
+func (r *pubSubAdapter) getOrCreateTopic(topicName string) (topic *pubsub.Topic, err error) {
 
-	// If topic does not exist, create the topic
-	if !ok {
-		if t, err = r.client.CreateTopic(context.Background(), topicName); err != nil {
-			return t, err
+	var exists bool
+
+	topic = r.client.Topic(topicName)
+
+	// Check if the topic exists.
+	exists, err = topic.Exists(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if topic exists: %s", err)
+	}
+	// Create the topic if it does not exist.
+	if !exists {
+		topic, err = r.client.CreateTopic(context.Background(), topicName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create topic: %s", err)
 		}
 	}
-	return t, nil
+
+	// Configure message ordering if enabled.
+	if config.Get().EnableMessageOrdering() {
+		topic.EnableMessageOrdering = true
+	}
+	return
 }
 
 // Get reference to existing subscription or create new topic if not exists
-func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberName string) (*pubsub.Subscription, error) {
+func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberName string) (sub *pubsub.Subscription, err error) {
 
-	sub := r.client.Subscription(subscriberName)
+	var exists bool
 
-	ok, err := sub.Exists(context.Background())
+	sub = r.client.Subscription(subscriberName)
+
+	exists, err = sub.Exists(context.Background())
 	if err != nil {
-		return nil, err
-	}
-
-	// If Subscription does not exist, create the Subscription
-	if !ok {
-		sub, err = r.client.CreateSubscription(context.Background(), subscriberName, pubsub.SubscriptionConfig{Topic: topic})
-		if err != nil {
-			return nil, err
-		} else {
-			return sub, nil
-		}
+		sub = nil
+		return
 	}
 
 	cfg := config.Get()
-	sub.ReceiveSettings.NumGoroutines = cfg.PubSubNumOfGoroutines()
-	sub.ReceiveSettings.MaxOutstandingMessages = cfg.PubSubMaxOutstandingMessages()
-	sub.ReceiveSettings.MaxOutstandingBytes = cfg.PubSubMaxOutstandingBytes()
 
-	return sub, nil
+	// If Subscription does not exist, create the Subscription
+	if !exists {
+		sub, err = r.client.CreateSubscription(context.Background(), subscriberName, pubsub.SubscriptionConfig{Topic: topic, EnableMessageOrdering: cfg.EnableMessageOrdering()})
+		if err == nil {
+			sub.ReceiveSettings.NumGoroutines = cfg.PubSubNumOfGoroutines()
+			sub.ReceiveSettings.MaxOutstandingMessages = cfg.PubSubMaxOutstandingMessages()
+			sub.ReceiveSettings.MaxOutstandingBytes = cfg.PubSubMaxOutstandingBytes()
+		} else {
+			sub = nil
+		}
+	}
+	return
 }
 
 // endregion

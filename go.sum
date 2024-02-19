@@ -44,6 +44,8 @@ github.com/go-yaaf/yaaf-common v1.2.79 h1:T3tvLRZ/Zmb5o3JLGvL7uPyp1HUvTNBZvf7D5v
 github.com/go-yaaf/yaaf-common v1.2.79/go.mod h1:zr5kpg4TdAH3rBsbwKIWQkxJ20gVRsIpAvPthYg1Xdw=
 github.com/go-yaaf/yaaf-common v1.2.81 h1:n2jNOOyIniyadyARqWuDXLlhbpemfB3tw9vBNeL1Tlc=
 github.com/go-yaaf/yaaf-common v1.2.81/go.mod h1:zr5kpg4TdAH3rBsbwKIWQkxJ20gVRsIpAvPthYg1Xdw=
+github.com/go-yaaf/yaaf-common v1.2.83 h1:qL6i49OQHBPrbTiqcpbnKeKZp48dtB7W605v7Uky67Y=
+github.com/go-yaaf/yaaf-common v1.2.83/go.mod h1:zr5kpg4TdAH3rBsbwKIWQkxJ20gVRsIpAvPthYg1Xdw=
 github.com/golang-jwt/jwt/v4 v4.4.3 h1:Hxl6lhQFj4AnOX6MLrsCb/+7tCj7DxP7VA+2rDIq5AU=
 github.com/golang-jwt/jwt/v4 v4.4.3/go.mod h1:m21LjoU+eqJr34lmDMbreY2eSTRJ1cv77w39/MY0Ch0=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
