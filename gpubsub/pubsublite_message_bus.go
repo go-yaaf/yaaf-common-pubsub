@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-yaaf/yaaf-common/config"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -60,17 +62,23 @@ func (r *pubSubLiteAdapter) Publish(messages ...IMessage) error {
 // Subscribe on topics
 func (r *pubSubLiteAdapter) Subscribe(subscriberName string, factory MessageFactory, callback SubscriptionCallback, topics ...string) (subscriptionId string, error error) {
 
-	if len(topics) != 1 {
-		return "", fmt.Errorf("only one topic allawed in this implementation")
+	if len(topics) > 1 {
+		return "", fmt.Errorf("only one topic allowed in this implementation")
 	}
 
 	_, err := r.getOrCreateSubscription(topics[0], subscriberName)
+
 	if err != nil {
 		return "", err
 	}
 
-	subPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpZone, subscriberName)
-	subscriber, err := pscompat.NewSubscriberClient(context.Background(), subPath)
+	settings := pscompat.ReceiveSettings{
+		MaxOutstandingMessages: config.Get().PubSubMaxOutstandingMessages(),
+		MaxOutstandingBytes:    config.Get().PubSubMaxOutstandingBytes(),
+	}
+	subPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpLocation, subscriberName)
+	subscriber, err := pscompat.NewSubscriberClientWithSettings(context.Background(), subPath, settings)
+
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +106,6 @@ func (r *pubSubLiteAdapter) readMessages(subscriber *pscompat.SubscriberClient, 
 					m.Nack()
 				}
 			}
-			m.Ack()
 		})
 		if err != nil {
 			if errors.Is(err, pscompat.ErrBackendUnavailable) {
@@ -164,7 +171,7 @@ func (r *pubSubLiteAdapter) CreateConsumer(subscriberName string, mf MessageFact
 	}
 
 	// Create subscriber client
-	subPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpZone, subscriberName)
+	subPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpLocation, subscriberName)
 	subscriber, err := pscompat.NewSubscriberClient(context.Background(), subPath)
 	if err != nil {
 		return nil, err
@@ -260,7 +267,7 @@ func (c *pubLiteSubConsumer) Read(timeout time.Duration) (message IMessage, err 
 func (r *pubSubLiteAdapter) getOrCreateTopic(topicName string) (*pubsublite.TopicConfig, error) {
 
 	ctx := context.Background()
-	topicPath := fmt.Sprintf("projects/%s/locations/%s/topics/%s", r.gcpProject, r.gcpZone, topicName)
+	topicPath := fmt.Sprintf("projects/%s/locations/%s/topics/%s", r.gcpProject, r.gcpLocation, topicName)
 
 	if topic, err := r.client.Topic(ctx, topicPath); err == nil {
 		return topic, nil
@@ -281,16 +288,29 @@ func (r *pubSubLiteAdapter) getOrCreateTopic(topicName string) (*pubsublite.Topi
 // Get reference to existing subscription or create new topic if not exists
 func (r *pubSubLiteAdapter) getOrCreateSubscription(topicName, subscriberName string) (*pubsublite.SubscriptionConfig, error) {
 
+	var (
+		apiErr *apierror.APIError
+	)
 	ctx := context.Background()
-	topicPath := fmt.Sprintf("projects/%s/locations/%s/topics/%s", r.gcpProject, r.gcpZone, topicName)
-	subPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpZone, subscriberName)
+	topicPath := fmt.Sprintf("projects/%s/locations/%s/topics/%s", r.gcpProject, r.gcpLocation, topicName)
+	subscriptionPath := fmt.Sprintf("projects/%s/locations/%s/subscriptions/%s", r.gcpProject, r.gcpLocation, subscriberName)
 
-	subConfig := pubsublite.SubscriptionConfig{
-		Name:                subPath,
+	subConfigRequested := pubsublite.SubscriptionConfig{
+		Name:                subscriptionPath,
 		Topic:               topicPath,
 		DeliveryRequirement: pubsublite.DeliverImmediately,
 	}
-	return r.client.CreateSubscription(ctx, subConfig)
+
+	subConfigReturned, err := r.client.CreateSubscription(ctx, subConfigRequested)
+	if err != nil {
+		if errors.As(err, &apiErr) {
+			if apiErr.Details().ErrorInfo.Reason == "RESOURCE_ALREADY_EXISTS" {
+				// try to swallow an error
+				err = nil
+			}
+		}
+	}
+	return subConfigReturned, err
 }
 
 // endregion

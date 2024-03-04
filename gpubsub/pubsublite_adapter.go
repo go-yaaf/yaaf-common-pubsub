@@ -1,46 +1,51 @@
 package gpubsub
 
 import (
-	"context"
-	"fmt"
-	"net/url"
-	"os"
-	"strings"
-
 	"cloud.google.com/go/pubsublite"
+	"context"
+	"errors"
+	"fmt"
 	. "github.com/go-yaaf/yaaf-common/messaging"
+	"strings"
 )
 
 type pubSubLiteAdapter struct {
-	client     *pubsublite.AdminClient
-	uri        string
+	client *pubsublite.AdminClient
+	uri,
+	//gcpRegion,
+	gcpLocation,
 	gcpProject string
-	gcpRegion  string
-	gcpZone    string
 }
 
 // NewPubSubLiteMessageBus factory method for PubSub IMessageBus implementation
 //
 // param: URI - represents the redis connection string in the format of: pubsub://project/region
-func NewPubSubLiteMessageBus(URI string) (mq IMessageBus, err error) {
+func NewPubSubLiteMessageBus(uri string) (mq IMessageBus, err error) {
 
-	project := getProject(URI)
-	region := getRegion(URI)
-	zone := getRegion(URI)
+	var (
+		client            *pubsublite.AdminClient
+		project, location string
+	)
+
+	if project, err = extractGcpProjectNameFromUri(uri); err != nil {
+		return nil, err
+	}
+
+	if location, err = extractGcpLocation(uri); err != nil {
+		return nil, err
+	}
 
 	ctx := context.Background()
 
-	client, err := pubsublite.NewAdminClient(ctx, region)
-	if err != nil {
+	if client, err = pubsublite.NewAdminClient(ctx, gcpZoneToRegion(location)); err != nil {
 		return nil, err
 	}
 
 	psa := &pubSubLiteAdapter{
-		uri:        URI,
-		client:     client,
-		gcpProject: project,
-		gcpRegion:  region,
-		gcpZone:    zone,
+		uri:         uri,
+		client:      client,
+		gcpProject:  project,
+		gcpLocation: location,
 	}
 
 	return psa, nil
@@ -63,37 +68,33 @@ func (r *pubSubLiteAdapter) Close() error {
 
 // CloneMessageBus returns a new copy of this message bus
 func (r *pubSubLiteAdapter) CloneMessageBus() (mq IMessageBus, err error) {
-	return NewPubSubMessageBus(r.uri)
+	return NewPubSubMessageBus("")
 }
 
-// Get region or zone
-func getRegion(URI string) string {
-
-	// First, try to extract region (zone) from the URI
-	if uri, err := url.Parse(URI); err == nil {
-		zone := uri.Path
-		return strings.Replace(zone, "/", "", -1)
+// extractGcpProjectNameFromUri extracts the project name from a Pub/Sub Lite URI.
+func extractGcpProjectNameFromUri(uri string) (string, error) {
+	parts := strings.Split(uri, "/")
+	if len(parts) != 4 || parts[0] != "pubsub:" {
+		return "", errors.New("invalid URI format")
 	}
-
-	if result := os.Getenv("GCP_REGION"); len(result) > 0 {
-		return result
-	} else {
-		return "europe-west3-a"
-	}
+	return parts[2], nil
 }
 
-// Get project
-func getProject(URI string) string {
-
-	// First, try to extract project from the URI
-	if uri, err := url.Parse(URI); err == nil {
-		return uri.Host
+// extractGcpLocation extracts the location (region or zone) from a Pub/Sub Lite URI.
+func extractGcpLocation(uri string) (string, error) {
+	parts := strings.Split(uri, "/")
+	if len(parts) != 4 || parts[0] != "pubsub:" {
+		return "", errors.New("invalid URI format")
 	}
+	return parts[3], nil
+}
 
-	// Try to get the project from the environment
-	if result := os.Getenv("GCP_PROJECT"); len(result) > 0 {
-		return result
-	} else {
-		return "shieldiot-production"
+// GcpZoneToRegion converts a zone name to its corresponding region name.
+// Zones are typically in the format of [region]-[zone_identifier] (e.g., europe-west3-a).
+// The function removes the zone identifier to return the region name.
+func gcpZoneToRegion(zone string) string {
+	if idx := strings.LastIndex(zone, "-"); idx != -1 {
+		return zone[:idx]
 	}
+	return zone // Return the original string if no zone identifier is found.
 }
