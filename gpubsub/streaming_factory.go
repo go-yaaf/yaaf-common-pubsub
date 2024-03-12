@@ -21,6 +21,6 @@ func StreamingFactory(uri string) (IMessageBus, error) {
 	case "pubsublite":
 		return NewPubSubLiteMessageBus(uri)
 	default:
-		return nil, fmt.Errorf("unknown streaming schema in passed URI: %s", uri)
+		return NewInMemoryMessageBus()
 	}
 }

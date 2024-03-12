@@ -144,15 +144,18 @@ func (r *pubSubLiteAdapter) Pop(factory MessageFactory, timeout time.Duration, q
 
 // CreateProducer creates message producer for specific topic
 func (r *pubSubLiteAdapter) CreateProducer(topicName string) (IMessageProducer, error) {
-	if topic, err := r.getOrCreateTopic(topicName); err != nil {
-		return nil, err
-	} else {
-		if publisher, er := pscompat.NewPublisherClient(context.Background(), topic.Name); er != nil {
-			return nil, err
+	var errToReturn error
+	if topic, err := r.getOrCreateTopic(topicName); err == nil {
+		if publisher, er := pscompat.NewPublisherClient(context.Background(), topic.Name); er == nil {
+			eok := config.Get().EnableMessageOrdering()
+			return &pubSubLiteProducer{topicName: topicName, publisher: publisher, enableOrderingKey: eok}, nil
 		} else {
-			return &pubSubLiteProducer{topicName: topicName, publisher: publisher}, nil
+			errToReturn = er
 		}
+	} else {
+		errToReturn = err
 	}
+	return nil, errToReturn
 }
 
 // CreateConsumer creates message consumer for a specific topic
@@ -188,8 +191,9 @@ func (r *pubSubLiteAdapter) CreateConsumer(subscriberName string, mf MessageFact
 // region Producer actions ---------------------------------------------------------------------------------------------
 
 type pubSubLiteProducer struct {
-	topicName string
-	publisher *pscompat.PublisherClient
+	topicName         string
+	enableOrderingKey bool
+	publisher         *pscompat.PublisherClient
 }
 
 // Close producer does nothing in this implementation
@@ -217,9 +221,11 @@ func (p *pubSubLiteProducer) Publish(messages ...IMessage) error {
 		if bytes, er := messageToRaw(message); er != nil {
 			return er
 		} else {
-			if message.Topic() == p.topicName {
-				p.publisher.Publish(context.Background(), &pubsub.Message{Data: bytes})
+			if message.Topic() != p.topicName {
+				continue
 			}
+			msg := &pubsub.Message{Data: bytes, OrderingKey: message.Addressee()}
+			p.publisher.Publish(context.Background(), msg)
 		}
 	}
 	return nil
