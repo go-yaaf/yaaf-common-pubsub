@@ -81,7 +81,7 @@ func init() {
 }
 
 func TestPubSubLitePublish(t *testing.T) {
-
+	t.Skip()
 	_ = os.Setenv("STREAMING_URI", "pubsublite://projects/shieldiot-staging/locations/europe-west3-a")
 
 	uri := config.Get().StreamingUri()
