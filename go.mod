@@ -6,7 +6,8 @@ require (
 	cloud.google.com/go/pubsub v1.36.2
 	cloud.google.com/go/pubsublite v1.8.1
 	cloud.google.com/go/storage v1.36.0
-	github.com/go-yaaf/yaaf-common v1.2.88
+	github.com/go-yaaf/yaaf-common v1.2.90
+	github.com/googleapis/gax-go/v2 v2.12.1
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/api v0.166.0
 )
@@ -24,11 +25,9 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
-	github.com/googleapis/gax-go/v2 v2.12.1 // indirect
 	github.com/jaevor/go-nanoid v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
@@ -47,7 +46,6 @@ require (
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240221002015-b0ce06bbee7c // indirect

@@ -3,9 +3,9 @@ package gpubsub
 import (
 	"cloud.google.com/go/pubsublite"
 	"context"
-	"errors"
 	"fmt"
 	. "github.com/go-yaaf/yaaf-common/messaging"
+	"net/url"
 	"strings"
 )
 
@@ -73,18 +73,18 @@ func (r *pubSubLiteAdapter) CloneMessageBus() (mq IMessageBus, err error) {
 
 // extractGcpProjectNameFromUri extracts the project name from a Pub/Sub Lite URI.
 func extractGcpProjectNameFromUri(uri string) (string, error) {
-	parts := strings.Split(uri, "/")
-	if len(parts) != 4 || parts[0] != "pubsub:" {
-		return "", errors.New("invalid URI format")
+	parts, err := parseAndValidatePubSubLiteUri(uri)
+	if err != nil {
+		return "", fmt.Errorf("error extracting GCP project name from URI (%s): %s", uri, err)
 	}
-	return parts[2], nil
+	return parts[1], nil
 }
 
 // extractGcpLocation extracts the location (region or zone) from a Pub/Sub Lite URI.
 func extractGcpLocation(uri string) (string, error) {
-	parts := strings.Split(uri, "/")
-	if len(parts) != 4 || parts[0] != "pubsub:" {
-		return "", errors.New("invalid URI format")
+	parts, err := parseAndValidatePubSubLiteUri(uri)
+	if err != nil {
+		return "", fmt.Errorf("error extracting GCP location from URI (%s): %s", uri, err)
 	}
 	return parts[3], nil
 }
@@ -97,4 +97,22 @@ func gcpZoneToRegion(zone string) string {
 		return zone[:idx]
 	}
 	return zone // Return the original string if no zone identifier is found.
+}
+
+// parseAndValidatePubSubLiteUri parses the URI and validates its scheme and format.
+func parseAndValidatePubSubLiteUri(uri string) ([]string, error) {
+	parsedURI, err := url.Parse(uri)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing URI (%s): %s", uri, err)
+	}
+	if parsedURI.Scheme != "pubsublite" {
+		return nil, fmt.Errorf("invalid scheme (%s) in URI (%s)", parsedURI.Scheme, uri)
+	}
+
+	parts := strings.Split(parsedURI.Path, "/")
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("invalid URI format: %s", uri)
+	}
+
+	return parts, nil
 }

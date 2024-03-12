@@ -28,6 +28,9 @@ func (r *pubSubLiteAdapter) Publish(messages ...IMessage) error {
 	publishersMap := make(map[string]*pscompat.PublisherClient)
 
 	for _, message := range messages {
+		if message == nil {
+			continue
+		}
 		if _, ok := publishersMap[message.Topic()]; !ok {
 			if topic, err := r.getOrCreateTopic(message.Topic()); err != nil {
 				return err
@@ -208,6 +211,9 @@ func (p *pubSubLiteProducer) Publish(messages ...IMessage) error {
 
 	// Send messages to topic (only messages wit the same topic name)
 	for _, message := range messages {
+		if message == nil {
+			continue
+		}
 		if bytes, er := messageToRaw(message); er != nil {
 			return er
 		} else {

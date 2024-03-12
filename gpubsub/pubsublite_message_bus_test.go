@@ -3,6 +3,7 @@ package gpubsub
 import (
 	"github.com/go-yaaf/yaaf-common/config"
 	"github.com/go-yaaf/yaaf-common/logger"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -81,33 +82,40 @@ func init() {
 
 func TestPubSubLitePublish(t *testing.T) {
 
-	uri := config.Get().PubSubLiteUri()
+	_ = os.Setenv("STREAMING_URI", "pubsublite://projects/shieldiot-staging/locations/europe-west3-a")
 
-	bus, err := NewPubSubLiteMessageBus(uri)
+	uri := config.Get().StreamingUri()
+
+	bus, err := StreamingFactory(uri)
 
 	if err != nil {
 		t.Fatalf("error create message bus: %s", err)
 	}
 
 	i := 0
-	callback1 := func(m IMessage) bool {
-		i++
-		logger.Debug("subscriber: %d   %d message received, id: %s", 1, i, m.SessionId())
-		return true
-	}
-	j := 0
-	callback2 := func(m IMessage) bool {
-		j++
-		logger.Debug("subscriber: %d   %d message received, id: %s", 2, j, m.SessionId())
-		time.Sleep(time.Millisecond * 200)
-		return true
+	callbackWrapper := func(id int, delay time.Duration) SubscriptionCallback {
+		return func(m IMessage) bool {
+			i++
+			logger.Debug("subscriber: %d   %d message received, id: %s", id, i, m.SessionId())
+			if delay > 0 {
+				time.Sleep(time.Millisecond * delay)
+			}
+			return true
+		}
 	}
 
-	if _, err := bus.Subscribe("test_subscriber", NewTestRecordMessage, callback1, testTopicName); err != nil {
+	producer, err := bus.CreateProducer(testTopicName)
+	if err != nil {
+		t.Fatalf("error create producer: %s", err)
+	}
+
+	_ = producer.Publish(nil)
+
+	if _, err := bus.Subscribe("test_subscriber", NewTestRecordMessage, callbackWrapper(1, 0), testTopicName); err != nil {
 		t.Fatalf("error subscrubing to test topic: ")
 	}
 
-	if _, err := bus.Subscribe("test_subscriber", NewTestRecordMessage, callback2, testTopicName); err != nil {
+	if _, err := bus.Subscribe("test_subscriber", NewTestRecordMessage, callbackWrapper(2, 200), testTopicName); err != nil {
 		t.Fatalf("error subscrubing to test topic: ")
 	}
 	go func() {
@@ -115,7 +123,7 @@ func TestPubSubLitePublish(t *testing.T) {
 		for {
 			i++
 			msg := initNewTestRecordMessage(i)
-			if err = bus.Publish(msg); err != nil {
+			if err = producer.Publish(msg); err != nil {
 				t.Fatalf("error publish message: %s", err)
 			}
 		}
