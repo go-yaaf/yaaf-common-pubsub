@@ -243,13 +243,13 @@ func (r *pubSubAdapter) getOrCreateTopic(topicName string) (topic *pubsub.Topic,
 	// Check if the topic exists.
 	exists, err = topic.Exists(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if topic exists: %s", err)
+		return nil, fmt.Errorf("failed to check if topic %s exists, error: %s", topicName, err)
 	}
 	// Create the topic if it does not exist.
 	if !exists {
 		topic, err = r.client.CreateTopic(context.Background(), topicName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create topic: %s", err)
+			return nil, fmt.Errorf("failed to create topic: %s, error: %s", topicName, err)
 		}
 	}
 
