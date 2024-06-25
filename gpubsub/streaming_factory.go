@@ -2,8 +2,9 @@ package gpubsub
 
 import (
 	"fmt"
-	. "github.com/go-yaaf/yaaf-common/messaging"
 	"net/url"
+
+	. "github.com/go-yaaf/yaaf-common/messaging"
 )
 
 // StreamingFactory - Analyzes the URI string and calls the appropriate factory function
@@ -18,8 +19,6 @@ func StreamingFactory(uri string) (IMessageBus, error) {
 	switch parsedURI.Scheme {
 	case "pubsub":
 		return NewPubSubMessageBus(uri)
-	case "pubsublite":
-		return NewPubSubLiteMessageBus(uri)
 	default:
 		return NewInMemoryMessageBus()
 	}

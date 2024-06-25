@@ -24,7 +24,7 @@ func TestPubSubBinary(t *testing.T) {
 		panic(any(err))
 	}
 
-	if er := bus.Ping(5, 5); err != nil {
+	if er := bus.Ping(5, 5); er != nil {
 		fmt.Println("error pinging database")
 		panic(any(er))
 	}

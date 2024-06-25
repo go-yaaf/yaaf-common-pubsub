@@ -38,7 +38,7 @@ func TestPubSubSuite(t *testing.T) {
 // SetupSuite will run once when the test suite begins
 func (s *PubSubTestSuite) SetupSuite() {
 
-	// Set local pubsub emulator host
+	// Set local pub-sub emulator host
 	_ = os.Setenv("PUBSUB_EMULATOR_HOST", localEmulator)
 
 	// Give it 5 seconds to warm up
@@ -63,7 +63,7 @@ func (s *PubSubTestSuite) createSUT() messaging.IMessageBus {
 		panic(any(err))
 	}
 
-	if er := sut.Ping(5, 5); err != nil {
+	if er := sut.Ping(5, 5); er != nil {
 		fmt.Println("error pinging database")
 		panic(any(er))
 	}
