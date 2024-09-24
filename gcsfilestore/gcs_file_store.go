@@ -119,7 +119,7 @@ func (f *GcsFileStore) Apply(filter string, action func(string)) error {
 
 // Exists test for resource existence
 func (f *GcsFileStore) Exists(uri string) (result bool) {
-	if strings.HasPrefix(uri, "gcs://") {
+	if strings.HasPrefix(uri, "gcs://") || strings.HasPrefix(uri, "gs://") {
 		return NewGcsFile(uri).Exists()
 	} else {
 		return NewGcsFile(fs.CombineUri(f.uri, uri)).Exists()
@@ -128,7 +128,7 @@ func (f *GcsFileStore) Exists(uri string) (result bool) {
 
 // Delete resource
 func (f *GcsFileStore) Delete(uri string) (err error) {
-	if strings.HasPrefix(uri, "gcs://") {
+	if strings.HasPrefix(uri, "gcs://") || strings.HasPrefix(uri, "gs://") {
 		return NewGcsFile(uri).Delete()
 	} else {
 		return NewGcsFile(fs.CombineUri(f.uri, uri)).Delete()
