@@ -3,8 +3,9 @@ package gpubsub
 import (
 	"context"
 	"fmt"
-	"github.com/go-yaaf/yaaf-common/config"
 	"time"
+
+	"github.com/go-yaaf/yaaf-common/config"
 
 	"cloud.google.com/go/pubsub"
 
@@ -265,6 +266,16 @@ func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberN
 
 	var exists bool
 
+	cfg := config.Get()
+
+	defer func() {
+		if sub != nil {
+			sub.ReceiveSettings.NumGoroutines = cfg.PubSubNumOfGoroutines()
+			sub.ReceiveSettings.MaxOutstandingMessages = cfg.PubSubMaxOutstandingMessages()
+			sub.ReceiveSettings.MaxOutstandingBytes = cfg.PubSubMaxOutstandingBytes()
+		}
+	}()
+
 	sub = r.client.Subscription(subscriberName)
 
 	exists, err = sub.Exists(context.Background())
@@ -273,16 +284,13 @@ func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberN
 		return
 	}
 
-	cfg := config.Get()
-
 	// If Subscription does not exist, create the Subscription
 	if !exists {
-		sub, err = r.client.CreateSubscription(context.Background(), subscriberName, pubsub.SubscriptionConfig{Topic: topic, EnableMessageOrdering: cfg.EnableMessageOrdering()})
-		if err == nil {
-			sub.ReceiveSettings.NumGoroutines = cfg.PubSubNumOfGoroutines()
-			sub.ReceiveSettings.MaxOutstandingMessages = cfg.PubSubMaxOutstandingMessages()
-			sub.ReceiveSettings.MaxOutstandingBytes = cfg.PubSubMaxOutstandingBytes()
-		} else {
+		sub, err = r.client.CreateSubscription(context.Background(), subscriberName,
+			pubsub.SubscriptionConfig{Topic: topic,
+				AckDeadline:           time.Duration(cfg.PubSubAckDeadline()),
+				EnableMessageOrdering: cfg.EnableMessageOrdering()})
+		if err != nil {
 			sub = nil
 		}
 	}
