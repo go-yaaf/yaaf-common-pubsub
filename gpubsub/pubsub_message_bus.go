@@ -288,7 +288,7 @@ func (r *pubSubAdapter) getOrCreateSubscription(topic *pubsub.Topic, subscriberN
 	if !exists {
 		sub, err = r.client.CreateSubscription(context.Background(), subscriberName,
 			pubsub.SubscriptionConfig{Topic: topic,
-				AckDeadline:           time.Duration(cfg.PubSubAckDeadline()),
+				AckDeadline:           time.Second * time.Duration(cfg.PubSubAckDeadline()),
 				EnableMessageOrdering: cfg.EnableMessageOrdering()})
 		if err != nil {
 			sub = nil
