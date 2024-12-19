@@ -135,4 +135,12 @@ func (f *GcsFileStore) Delete(uri string) (err error) {
 	}
 }
 
+// Close release associated resources, if any
+func (f *GcsFileStore) Close() error {
+	if f.gsClient != nil {
+		return f.gsClient.Close()
+	}
+	return nil
+}
+
 // endregion
