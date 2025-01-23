@@ -5,7 +5,7 @@ go 1.22
 require (
 	cloud.google.com/go/pubsub v1.45.1
 	cloud.google.com/go/storage v1.45.0
-	github.com/go-yaaf/yaaf-common v1.2.127
+	github.com/go-yaaf/yaaf-common v1.2.134
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/api v0.203.0
 )
