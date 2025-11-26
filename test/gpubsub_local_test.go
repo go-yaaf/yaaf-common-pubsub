@@ -81,7 +81,7 @@ func (s *PubSubTestSuite) TestLocalPubSub() {
 
 	// Create subscriber
 	if subscriber, err := s.mq.Subscribe("my_subscriber", NewStatusMessage, s.processMessage, "status"); err != nil {
-		logger.Error(err.Error())
+		logger.Error("error: %s", err.Error())
 	} else {
 		logger.Info("subscriber: %s was created", subscriber)
 	}
@@ -104,14 +104,14 @@ func (s *PubSubTestSuite) reader() {
 
 	consumer, err := s.mq.CreateConsumer("status_reader", NewStatusMessage, "status")
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("error: %s", err.Error())
 	} else {
 		logger.Info("Starting consumer: status_reader")
 	}
 
 	for {
-		if msg, err := consumer.Read(time.Second * 5); err != nil {
-			logger.Error(err.Error())
+		if msg, er := consumer.Read(time.Second * 5); er != nil {
+			logger.Error("error: %s", er.Error())
 		} else {
 			logger.Info("[reader] --> message: %s received", msg.SessionId())
 		}
