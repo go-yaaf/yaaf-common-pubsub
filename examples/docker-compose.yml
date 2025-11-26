@@ -1,0 +1,27 @@
+# https://docs.docker.com/compose/yml/
+# This docker-compose is used to create a local environment with all the required middleware
+# services for testing and debugging the SUT (System Under Test)
+# In this case, the SUT is yaaf-common-pubsub.
+
+version: '3.9'
+services:
+  pubsub:
+    image: google/cloud-sdk:emulators
+    restart: always
+    ports:
+      - "8681:8681"
+    command: /bin/bash -c "gcloud beta emulators pubsub start --project=your-project-id --host-port='0.0.0.0:8681'"
+
+    environment:
+      PUBSUB_PROJECT1: "your-project-id,status:status-logger,status-aggregator"
+
+
+  pubsubui:
+    image: ohandou/pubsub-emulator-ui
+    restart: always
+    ports:
+      - "8082:4000"
+      - "8083:80"
+    environment:
+      PUBSUB_EMULATOR_HOST: "pubsub:8681"
+      PROJECT_ID: "your-project-id"
