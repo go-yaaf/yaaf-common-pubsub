@@ -1,0 +1,451 @@
+# yaaf-common-pubsub
+
+> Google Cloud Pub/Sub messaging middleware for the YAAF framework
+
+## Overview
+
+This library provides a Google Cloud Pub/Sub implementation of the `IMessageBus` interface from yaaf-common. It enables scalable, reliable pub/sub messaging for Go applications with automatic topic/subscription creation and emulator support for local development.
+
+**Key Features:**
+- Publish messages to topics
+- Subscribe to topics with async processing
+- Dedicated Producers and Consumers for structured messaging
+- Automatic topic and subscription creation
+- Google Cloud Pub/Sub emulator support
+- Message ordering support
+- Configurable acknowledgment settings
+
+## Installation
+
+```bash
+go get -v -t github.com/go-yaaf/yaaf-common-pubsub
+```
+
+**Import:**
+```go
+import "github.com/go-yaaf/yaaf-common-pubsub/gpubsub"
+```
+
+## Core Concepts
+
+### IMessageBus Interface
+The main interface for messaging operations, implemented by the pubSubAdapter.
+
+**Connection URI Format:** `pubsub://<your-gcp-project-id>`
+
+### Message Structure
+Messages must implement the `IMessage` interface from yaaf-common:
+- Embed `BaseMessage` from yaaf-common/messaging
+- Implement `Payload() any` method
+- Provide a factory function returning `IMessage`
+
+### Factory Pattern
+Every message type requires a factory function for unmarshaling:
+```go
+func NewStatusMessage() IMessage {
+    return &StatusMessage{}
+}
+```
+
+## Quick Start
+
+### 1. Create Message Bus
+
+```go
+import (
+    "os"
+    ps "github.com/go-yaaf/yaaf-common-pubsub/gpubsub"
+)
+
+// For local emulator (set before creating bus)
+_ = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
+
+// Create bus
+bus, err := ps.NewPubSubMessageBus("pubsub://your-project-id")
+if err != nil {
+    logger.Fatal("could not create message bus: %v", err)
+}
+defer bus.Close()
+
+// Verify connectivity
+if err := bus.Ping(3, 1); err != nil {
+    logger.Fatal("could not connect to pub/sub: %v", err)
+}
+```
+
+### 2. Define Message Types
+
+```go
+import (
+    . "github.com/go-yaaf/yaaf-common/entity"
+    . "github.com/go-yaaf/yaaf-common/messaging"
+)
+
+// Data model
+type Status struct {
+    BaseEntity
+    CPU int `json:"cpu"`
+    RAM int `json:"ram"`
+}
+
+// Message wrapper
+type StatusMessage struct {
+    BaseMessage
+    Status *Status `json:"status"`
+}
+
+func (m *StatusMessage) Payload() any { return m.Status }
+
+// Factory function (required for unmarshaling)
+func NewStatusMessage() IMessage {
+    return &StatusMessage{}
+}
+
+// Helper to create new messages
+func newStatusMessage(topic string, cpu, ram int) IMessage {
+    status := &Status{
+        BaseEntity: BaseEntity{Id: NanoID(), CreatedOn: Now()},
+        CPU:        cpu,
+        RAM:        ram,
+    }
+    message := &StatusMessage{Status: status}
+    message.MsgTopic = topic
+    return message
+}
+```
+
+### 3. Publishing Messages
+
+```go
+// Create and publish a message
+msg := newStatusMessage("status-topic", 80, 65)
+
+if err := bus.Publish(msg); err != nil {
+    logger.Error("failed to publish: %v", err)
+}
+
+// Publish multiple messages (batched by topic)
+messages := []IMessage{
+    newStatusMessage("status-topic", 75, 60),
+    newStatusMessage("status-topic", 82, 68),
+}
+if err := bus.Publish(messages...); err != nil {
+    logger.Error("failed to publish messages: %v", err)
+}
+```
+
+### 4. Subscribing to Topics
+
+```go
+// Define callback function
+func handleMessage(message IMessage) bool {
+    if sm, ok := message.(*StatusMessage); ok {
+        logger.Info("Received: CPU=%d%%, RAM=%d%%", sm.Status.CPU, sm.Status.RAM)
+        return true  // Acknowledge (ACK) the message
+    }
+    logger.Warn("Unknown message type")
+    return false // Negative-acknowledge (NACK) - message will be redelivered
+}
+
+// Subscribe to topic
+subscriptionId, err := bus.Subscribe(
+    "my-subscriber-id",     // unique subscriber name
+    NewStatusMessage,        // factory function
+    handleMessage,           // callback
+    "status-topic",         // topic name (only one allowed)
+)
+if err != nil {
+    logger.Error("failed to subscribe: %v", err)
+}
+
+// Keep application running
+select {}
+```
+
+**Callback Return Values:**
+- `true` = ACK (acknowledge) - message processed successfully
+- `false` = NACK (negative-acknowledge) - message will be redelivered
+
+### 5. Using Producers
+
+Producers are bound to a specific topic for high-throughput publishing.
+
+```go
+producer, err := bus.CreateProducer("status-topic")
+if err != nil {
+    logger.Fatal("failed to create producer: %v", err)
+}
+defer producer.Close()
+
+// Publish messages
+msg := newStatusMessage("status-topic", 75, 55)
+if err := producer.Publish(msg); err != nil {
+    logger.Error("producer publish failed: %v", err)
+}
+
+// Message ordering (if enabled in config)
+// Uses message.Addressee() as ordering key
+msg.MsgAddressee = "user-123"
+producer.Publish(msg)
+```
+
+### 6. Using Consumers
+
+Consumers provide blocking, controlled message consumption.
+
+```go
+consumer, err := bus.CreateConsumer(
+    "my-consumer-id",        // unique consumer name
+    NewStatusMessage,        // factory function
+    "status-topic",         // topic name (only one allowed)
+)
+if err != nil {
+    logger.Fatal("failed to create consumer: %v", err)
+}
+defer consumer.Close()
+
+// Read messages in a loop
+for {
+    // Read with timeout (0 = block indefinitely)
+    msg, err := consumer.Read(10 * time.Second)
+    if err != nil {
+        logger.Warn("read timeout or error: %v", err)
+        continue
+    }
+
+    if sm, ok := msg.(*StatusMessage); ok {
+        logger.Info("Consumer read: CPU=%d%%, RAM=%d%%",
+            sm.Status.CPU, sm.Status.RAM)
+        // Process message (automatically ACKed)
+    }
+}
+```
+
+## Configuration
+
+Configuration is handled through `yaaf-common/config` package:
+
+```go
+import "github.com/go-yaaf/yaaf-common/config"
+
+cfg := config.Get()
+
+// Message ordering
+cfg.EnableMessageOrdering()           // bool
+
+// Subscription settings
+cfg.PubSubAckDeadline()               // seconds
+cfg.PubSubNumOfGoroutines()           // int
+cfg.PubSubMaxOutstandingMessages()    // int
+cfg.PubSubMaxOutstandingBytes()       // int
+```
+
+## Local Development with Emulator
+
+### Setup
+```bash
+# Install emulator
+gcloud components install pubsub-emulator
+gcloud components update
+
+# Start emulator
+gcloud beta emulators pubsub start --project=test-project
+```
+
+### Usage
+```go
+import "os"
+
+// Set emulator host BEFORE creating message bus
+_ = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
+
+// Create bus with any project ID
+bus, err := ps.NewPubSubMessageBus("pubsub://test-project")
+```
+
+## Important Implementation Notes
+
+### Supported Operations
+- **Publish**: Full support for single and batch publishing
+- **Subscribe**: Full support with callback-based processing
+- **CreateProducer**: Full support
+- **CreateConsumer**: Full support with blocking Read()
+
+### Unsupported Operations
+- **Push()**: Returns error - use `Publish()` instead
+- **Pop()**: Returns error - use `Consumer.Read()` instead
+
+### Topic and Subscription Limits
+- Subscribe and CreateConsumer only support **ONE topic at a time**
+- For multiple topics, create separate subscriptions/consumers
+
+### Message Ordering
+- Enabled via `config.EnableMessageOrdering()`
+- Uses `message.Addressee()` as ordering key
+- Must be enabled for both topics and subscriptions
+
+### Error Handling
+- Malformed messages are automatically ACKed to prevent redelivery loops
+- Serialization errors return immediately
+- Topic/subscription creation errors are propagated
+
+## File Structure
+
+```
+gpubsub/
+├── pubsub_adapter.go          # Core adapter, factory, Ping, Close
+├── pubsub_message_bus.go      # IMessageBus implementation
+├── streaming_factory.go       # Message serialization/deserialization
+examples/pubsub/
+├── model.go                   # Example message definitions
+├── status_publisher.go        # Example publisher
+├── status_aggregator.go       # Example subscriber with aggregation
+├── status_logger.go           # Example simple subscriber
+└── main.go                    # Complete working example
+test/
+├── gpubsub_emulator_test.go   # Emulator tests
+├── gpubsub_local_test.go      # Local testing utilities
+└── *.go                       # Additional tests
+```
+
+## Dependencies
+
+**Required:**
+- `cloud.google.com/go/pubsub` v1.50.1+ - Google Cloud Pub/Sub client
+- `github.com/go-yaaf/yaaf-common` v1.2.182+ - YAAF framework interfaces
+
+**Imports for typical usage:**
+```go
+import (
+    . "github.com/go-yaaf/yaaf-common/entity"      // BaseEntity, NanoID, Now
+    . "github.com/go-yaaf/yaaf-common/messaging"   // IMessage, BaseMessage
+    "github.com/go-yaaf/yaaf-common/logger"        // Logging
+    "github.com/go-yaaf/yaaf-common/config"        // Configuration
+    ps "github.com/go-yaaf/yaaf-common-pubsub/gpubsub"
+)
+```
+
+## Common Patterns
+
+### Pattern: Simple Pub/Sub
+```go
+// Publisher
+bus, _ := ps.NewPubSubMessageBus("pubsub://project-id")
+msg := newStatusMessage("topic", 80, 65)
+bus.Publish(msg)
+
+// Subscriber
+bus.Subscribe("sub-id", NewStatusMessage, handleMessage, "topic")
+select {} // Keep running
+```
+
+### Pattern: Producer/Consumer
+```go
+// Producer (dedicated publisher)
+producer, _ := bus.CreateProducer("topic")
+producer.Publish(msg)
+
+// Consumer (blocking reads)
+consumer, _ := bus.CreateConsumer("consumer-id", NewStatusMessage, "topic")
+for {
+    msg, _ := consumer.Read(5 * time.Second)
+    go processMessage(msg) // Process async
+}
+```
+
+### Pattern: Multiple Subscribers
+```go
+// Each subscriber gets a copy of all messages
+bus.Subscribe("logger-sub", NewStatusMessage, logHandler, "status-topic")
+bus.Subscribe("aggregator-sub", NewStatusMessage, aggregateHandler, "status-topic")
+bus.Subscribe("alerts-sub", NewStatusMessage, alertHandler, "status-topic")
+```
+
+### Pattern: Message Ordering
+```go
+// Enable in config
+config.Get().SetMessageOrdering(true)
+
+// Set ordering key (addressee)
+msg := newStatusMessage("topic", 80, 65)
+msg.MsgAddressee = "user-123" // Messages for same user are ordered
+
+producer.Publish(msg)
+```
+
+## Testing
+
+### Unit Testing with Emulator
+```go
+import "testing"
+
+func TestPubSub(t *testing.T) {
+    // Emulator must be running
+    os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
+
+    bus, err := ps.NewPubSubMessageBus("pubsub://test-project")
+    if err != nil {
+        t.Fatalf("failed to create bus: %v", err)
+    }
+    defer bus.Close()
+
+    // Test operations...
+}
+```
+
+### Running Tests
+```bash
+# Start emulator
+gcloud beta emulators pubsub start --project=test-project
+
+# Run tests
+PUBSUB_EMULATOR_HOST=localhost:8681 go test ./...
+```
+
+## Common Errors and Solutions
+
+### Error: "only one topic is allowed"
+**Cause:** Passing multiple topics to Subscribe or CreateConsumer
+**Solution:** Create separate subscriptions for each topic
+
+### Error: "push is not supported"
+**Cause:** Calling `bus.Push()`
+**Solution:** Use `bus.Publish()` or `producer.Publish()`
+
+### Error: "pop is not supported"
+**Cause:** Calling `bus.Pop()`
+**Solution:** Use `consumer.Read(timeout)`
+
+### Error: Connection timeout
+**Cause:** Emulator not running or wrong PUBSUB_EMULATOR_HOST
+**Solution:** Start emulator and set environment variable before creating bus
+
+### Error: Malformed message
+**Cause:** Incorrect message factory or deserialization error
+**Solution:** Ensure factory function returns correct type with proper JSON tags
+
+## Best Practices
+
+1. **Always use factory functions** - Required for message deserialization
+2. **Set emulator host before creating bus** - Environment variable must be set early
+3. **Use defer for cleanup** - Always defer Close() on bus, producer, consumer
+4. **Handle callback errors** - Return false to NACK and retry
+5. **One topic per subscription** - Library limitation, design accordingly
+6. **Test with emulator** - Avoid GCP costs during development
+7. **Enable ordering carefully** - Only when strict ordering is required
+8. **Use producers for high throughput** - More efficient than bus.Publish()
+9. **Process async in consumers** - Use goroutines for Read() loop processing
+10. **Set appropriate timeouts** - Avoid indefinite blocking in production
+
+## Additional Resources
+
+- Full example: `/examples/pubsub/`
+- Tests: `/test/`
+- Google Cloud Pub/Sub docs: https://cloud.google.com/pubsub/docs
+- YAAF Common: https://github.com/go-yaaf/yaaf-common
+
+## Version
+
+Current version: 1.2.x
+Go version: 1.24.0+
+Last updated: 2026-02-05
