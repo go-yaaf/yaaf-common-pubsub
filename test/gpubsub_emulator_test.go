@@ -1,39 +1,48 @@
 package test
 
 import (
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"context"
 	"fmt"
 	"github.com/go-yaaf/yaaf-common/entity"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"testing"
 )
 
-func createTopic(client *pubsub.Client, topicName string) {
-	if topic, er := client.CreateTopic(context.Background(), topicName); er != nil {
+func createTopic(client *pubsub.Client, projectId, topicName string) {
+	name := fmt.Sprintf("projects/%s/topics/%s", projectId, topicName)
+	if topic, er := client.TopicAdminClient.CreateTopic(context.Background(), &pubsubpb.Topic{Name: name}); er != nil {
 		fmt.Println("Topic exists")
 	} else {
-		fmt.Println("Topic string:", topic.String(), "Id:", topic.ID())
+		fmt.Println("Topic name:", topic.GetName())
 	}
 }
 
-func createSubscriber(client *pubsub.Client, topicName string, subscriberName string) {
+func createSubscriber(client *pubsub.Client, projectId, topicName string, subscriberName string) {
 
-	sub := client.Subscription(subscriberName)
-	ok, err := sub.Exists(context.Background())
-	if err != nil {
+	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, subscriberName)
+	topicPath := fmt.Sprintf("projects/%s/topics/%s", projectId, topicName)
+
+	_, err := client.SubscriptionAdminClient.GetSubscription(context.Background(), &pubsubpb.GetSubscriptionRequest{Subscription: subName})
+	if err == nil {
+		return
+	}
+	if status.Code(err) != codes.NotFound {
 		fmt.Println("Subscription exists error", err.Error())
 		return
 	}
 
-	// If Subscription does not exist, create the Subscription
-	if !ok {
-
-		sub, err = client.CreateSubscription(context.Background(), subscriberName, pubsub.SubscriptionConfig{Topic: client.Topic(topicName)})
-		if err != nil {
-			fmt.Println("createSubscriber error", err.Error())
-			return
-		}
+	// If the subscription does not exist, create it
+	_, err = client.SubscriptionAdminClient.CreateSubscription(context.Background(), &pubsubpb.Subscription{
+		Name:  subName,
+		Topic: topicPath,
+	})
+	if err != nil {
+		fmt.Println("createSubscriber error", err.Error())
+		return
 	}
 }
 
